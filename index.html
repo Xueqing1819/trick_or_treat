@@ -1,0 +1,1936 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>捣蛋小黄龙 · 不给糖就捣蛋</title>
+<style>
+/* ============================================================
+   基础与配色变量（暗紫 + 橙色 万圣节配色）
+   ============================================================ */
+:root{
+  --bg-1:#1d1035; --bg-2:#2b1a4e;
+  --card:#3a2765; --card-2:#31205a;
+  --line:#54408a; --line-soft:#463372;
+  --text:#f6efff; --muted:#bca9e6;
+  --orange:#ff8c2f; --orange-2:#ffb02e; --orange-deep:#c77f16;
+  --purple:#8b5cf6;
+  --red:#ff4d5e; --gold:#ffd76e;
+  --radius:18px;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{
+  font-family:"PingFang SC","Microsoft YaHei",system-ui,-apple-system,"Segoe UI",sans-serif;
+  color:var(--text);
+  background:linear-gradient(180deg,var(--bg-2),var(--bg-1) 62%);
+  min-height:100svh;
+  overflow-x:hidden;
+  line-height:1.5;
+}
+.hidden{display:none !important}
+button{font:inherit}
+
+/* ============================================================
+   夜空装饰：月亮 / 星星 / 蝙蝠（纯 CSS+SVG，无外部图片）
+   ============================================================ */
+.sky{position:fixed;inset:0;z-index:0;overflow:hidden;pointer-events:none}
+.moon{
+  position:absolute;top:6vh;right:7vw;width:76px;height:76px;border-radius:50%;
+  background:radial-gradient(circle at 35% 35%,#fff6d8,#ffe9a3 58%,#f0d268);
+  box-shadow:0 0 46px rgba(255,233,163,.38);
+}
+.stars i{
+  position:absolute;width:3px;height:3px;border-radius:50%;background:#fff;
+  opacity:.6;animation:twinkle 3.2s ease-in-out infinite;
+}
+@keyframes twinkle{0%,100%{opacity:.25}50%{opacity:.85}}
+.bat{position:absolute;width:44px;opacity:.85;animation:batFly 14s ease-in-out infinite}
+.bat.b2{animation-duration:19s;animation-delay:-6s;width:32px}
+.bat.b3{animation-duration:24s;animation-delay:-13s;width:26px}
+@keyframes batFly{
+  0%{transform:translate(0,0) rotate(-4deg)}
+  25%{transform:translate(46px,26px) rotate(5deg)}
+  50%{transform:translate(92px,-14px) rotate(-3deg)}
+  75%{transform:translate(40px,18px) rotate(6deg)}
+  100%{transform:translate(0,0) rotate(-4deg)}
+}
+
+/* 捣蛋值爆表时的全屏红光（只动 opacity，不触发重排） */
+#chaosOverlay{
+  position:fixed;inset:0;z-index:40;pointer-events:none;opacity:0;
+  transition:opacity .8s ease;
+  background:radial-gradient(ellipse at 50% 105%,rgba(255,40,60,.5),rgba(178,20,62,.28) 45%,rgba(110,8,50,.1) 72%,transparent);
+}
+#chaosOverlay.on{opacity:1}
+
+/* ============================================================
+   应用主体布局（手机 / 桌面自适应）
+   ============================================================ */
+#app{position:relative;z-index:10;max-width:520px;margin:0 auto;padding:14px 14px 40px}
+
+/* 顶部状态栏（HUD）：双轨计分 */
+#hud{
+  background:rgba(26,14,52,.72);border:2px solid var(--line);border-radius:var(--radius);
+  padding:12px 16px;margin-bottom:14px;animation:fadeUp .35s ease both;
+}
+.hud-row{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.hud-title{font-weight:800;font-size:17px;letter-spacing:1px}
+.hud-stats{display:flex;gap:8px}
+.stat{
+  display:flex;align-items:center;gap:6px;background:rgba(0,0,0,.28);
+  border:1.5px solid var(--line-soft);border-radius:99px;padding:4px 12px 4px 8px;font-weight:800;
+}
+.stat svg{width:20px;height:20px;flex:none}
+.stat b{min-width:20px;text-align:center}
+.stat-candy b{color:var(--orange-2)}
+.stat-mischief b{color:#ff8fa8}
+.stat.bump{animation:popScale .45s cubic-bezier(.3,1.8,.5,1)}
+.bar{
+  position:relative;height:12px;flex:1;background:#241640;border-radius:99px;
+  overflow:hidden;border:1px solid var(--line-soft);
+}
+.bar-fill{
+  height:100%;width:100%;border-radius:99px;
+  transform-origin:0 50%;transform:scaleX(0);
+  transition:transform .45s cubic-bezier(.22,1,.36,1);
+}
+.mischief-fill{background:linear-gradient(90deg,#8b5cf6,#ff4d5e)}
+.mood-fill{background:linear-gradient(90deg,#ffb02e,#ff8c2f)}
+.mini-fill{background:linear-gradient(90deg,#ffb02e,#ff8c2f)}
+.hud-mischief-row{display:flex;align-items:center;gap:10px;margin-top:8px}
+.hud-mischief-row .lbl{font-size:12px;color:var(--muted);flex:none}
+.hud-sub{display:flex;justify-content:space-between;align-items:center;margin-top:8px;font-size:13px;color:var(--muted)}
+.knock-dots{display:inline-flex;gap:5px;vertical-align:middle;margin-left:6px}
+.knock-dots i{width:9px;height:9px;border-radius:50%;background:#241640;border:1.5px solid var(--line-soft)}
+.knock-dots i.on{background:var(--orange-2);border-color:var(--orange-deep)}
+#hudChaos{color:#ff8fa8;font-weight:700}
+
+/* ============================================================
+   通用按钮 / 开关 / 卡片
+   ============================================================ */
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  border:none;cursor:pointer;padding:12px 22px;min-height:46px;
+  border-radius:14px;font-weight:800;font-size:15px;color:#2b1200;
+  background:linear-gradient(135deg,var(--orange-2),var(--orange));
+  box-shadow:0 4px 0 var(--orange-deep),0 10px 22px rgba(255,140,47,.22);
+  transition:transform .15s ease,box-shadow .15s ease,filter .15s ease;
+  user-select:none;
+}
+.btn:hover{filter:brightness(1.09);transform:translateY(-2px)}
+.btn:active{transform:translateY(1px) scale(.97);box-shadow:0 2px 0 var(--orange-deep)}
+.btn-ghost{
+  background:transparent;color:var(--text);border:2px solid var(--line);box-shadow:none;
+}
+.btn-ghost:hover{border-color:var(--orange-2);color:var(--orange-2);filter:none}
+.btn-danger{background:transparent;color:#ff9aa8;border:2px solid #a03248;box-shadow:none}
+.btn-danger:hover{border-color:var(--red);color:var(--red)}
+.btn-block{width:100%}
+.btn-row{display:flex;gap:10px;flex-wrap:wrap}
+.btn-row .btn{flex:1;min-width:120px}
+
+/* 小按钮（音效开关 / 重看示范 / 重新敲） */
+.btn-mini{
+  display:inline-flex;align-items:center;gap:6px;cursor:pointer;padding:7px 13px;
+  border-radius:10px;font-weight:700;font-size:13px;color:var(--muted);
+  background:transparent;border:1.5px solid var(--line);user-select:none;
+  transition:border-color .15s,color .15s,filter .15s,transform .12s;
+}
+.btn-mini:hover{border-color:var(--orange-2);color:var(--orange-2)}
+.btn-mini:active{transform:scale(.96)}
+
+/* ============================================================
+   开始界面
+   ============================================================ */
+.screen{animation:fadeUp .4s ease both}
+.hero{display:flex;flex-direction:column;align-items:center;text-align:center;padding-top:12px}
+.hero-dragon{width:min(230px,58vw)}
+.game-title{
+  font-size:clamp(26px,7vw,34px);font-weight:900;letter-spacing:2px;margin-top:6px;
+  background:linear-gradient(180deg,#ffd76e,#ff8c2f);
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+  filter:drop-shadow(0 3px 0 rgba(0,0,0,.3));
+}
+.game-sub{color:var(--muted);font-size:14px;margin-top:4px}
+.start-card{
+  margin-top:18px;background:rgba(26,14,52,.72);border:2px solid var(--line);
+  border-radius:22px;padding:22px 18px;display:flex;flex-direction:column;gap:16px;
+}
+.best-line{font-size:13px;color:var(--muted);text-align:center}
+.best-line b{color:var(--orange-2)}
+
+/* ============================================================
+   街区：四扇门
+   ============================================================ */
+.street-tip{
+  color:var(--muted);font-size:13px;margin:2px 2px 12px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;
+}
+.doors-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.door-card{
+  position:relative;background:var(--card);border:2px solid var(--line);border-radius:var(--radius);
+  padding:10px 8px 12px;cursor:pointer;text-align:center;
+  transition:transform .18s ease,border-color .18s ease,opacity .25s ease,filter .25s ease;
+}
+.door-card:hover{transform:translateY(-4px);border-color:var(--orange)}
+.door-card:active{transform:translateY(0) scale(.97)}
+.door-card.disabled{pointer-events:none;opacity:.45;filter:saturate(.35)}
+.door-card.satisfied{border-color:var(--orange-2);box-shadow:0 0 18px rgba(255,176,46,.32)}
+.door-label{font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:700}
+.door-visual svg{width:100%;max-width:96px;height:auto;display:block;margin:0 auto}
+.door-info{margin-top:6px;font-size:12px;min-height:34px}
+.door-unknown{color:#8d7cc0;letter-spacing:3px;padding-top:8px}
+.door-resident{display:flex;flex-direction:column;align-items:center;gap:3px}
+.mini-dragon{width:38px;height:38px}
+.mini-dragon svg{width:100%;height:100%}
+.mini-bar{width:100%;max-width:88px;height:7px}
+.knock-count{color:var(--muted);display:flex;justify-content:center;gap:3px}
+.knock-count i{width:6px;height:6px;border-radius:50%;background:#241640;border:1px solid var(--line-soft)}
+.knock-count i.on{background:var(--orange-2);border-color:var(--orange-deep)}
+.door-badge{
+  position:absolute;top:-10px;left:50%;transform:translateX(-50%);
+  font-size:11px;font-weight:800;padding:2px 10px;border-radius:99px;white-space:nowrap;
+}
+.badge-sugar{background:var(--orange-2);color:#2b1200}
+.badge-tired{background:#4b3a63;color:var(--muted);border:1px solid var(--line)}
+.badge-new{background:#ff4d5e;color:#fff;animation:popScale .4s cubic-bezier(.3,1.8,.5,1)}
+
+/* 捣蛋大乱时的门抖动（错峰触发，只动 transform） */
+.street-chaos .door-visual{animation:doorShake 2.4s ease-in-out infinite}
+.street-chaos .door-card:nth-child(2) .door-visual{animation-delay:.4s}
+.street-chaos .door-card:nth-child(3) .door-visual{animation-delay:.9s}
+.street-chaos .door-card:nth-child(4) .door-visual{animation-delay:1.5s}
+@keyframes doorShake{
+  0%,86%,100%{transform:translateX(0) rotate(0)}
+  88%{transform:translateX(-3px) rotate(-1.4deg)}
+  91%{transform:translateX(3px) rotate(1.4deg)}
+  94%{transform:translateX(-2px) rotate(-.7deg)}
+}
+.street-footer{
+  display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;
+  margin-top:16px;color:var(--muted);font-size:13px;
+}
+
+/* ============================================================
+   弹层（节奏条 / 住户互动 / 结算 / 图鉴 / 说明 / 分享）
+   ============================================================ */
+.modal{
+  position:fixed;inset:0;z-index:60;display:flex;align-items:center;justify-content:center;
+  padding:16px;background:rgba(12,6,26,.74);animation:fadeIn .22s ease;
+}
+.modal-card{
+  width:100%;max-width:440px;max-height:92svh;overflow-y:auto;overscroll-behavior:contain;
+  background:linear-gradient(180deg,var(--card),var(--card-2));
+  border:2px solid var(--line);border-radius:22px;padding:20px 18px 22px;position:relative;
+  animation:cardIn .3s cubic-bezier(.3,1.4,.4,1);
+}
+@keyframes fadeIn{from{opacity:0}}
+@keyframes cardIn{from{opacity:0;transform:translateY(26px) scale(.94)}}
+.modal-title{font-size:17px;font-weight:800;text-align:center;margin-bottom:4px}
+.modal-sub{font-size:13px;color:var(--muted);text-align:center;margin-bottom:10px}
+
+/* --- 敲门暗号 --- */
+.knock-wrap{padding:2px 0 4px;text-align:center}
+.knock-name{
+  display:inline-block;margin-top:4px;padding:3px 16px;border-radius:99px;
+  background:rgba(255,176,46,.14);border:1.5px solid var(--orange-deep);
+  color:var(--gold);font-weight:900;font-size:15px;letter-spacing:2px;
+}
+.symbols{
+  display:flex;justify-content:center;align-items:center;gap:10px;
+  flex-wrap:wrap;margin:14px 0 2px;min-height:24px;
+}
+/* 短敲 = 小圆点，长敲 = 长条 */
+.sym{
+  display:inline-block;border-radius:99px;flex:none;
+  transition:transform .15s ease,background .15s,border-color .15s;
+}
+.sym-S{width:15px;height:15px}
+.sym-L{width:44px;height:15px}
+.sym.solid{background:var(--line-soft);border:2px solid var(--line)}
+.sym.dashed{background:transparent;border:2px dashed #6f5d9c}
+.sym.lit{background:var(--orange-2);border-color:var(--gold);transform:scale(1.32)}
+.sym.filled{background:var(--orange);border-color:var(--orange-deep)}
+.sym.ok{background:#2f9e5f;border-color:#7ee081}
+.sym.bad{background:#b8304a;border-color:#ff8fa8}
+/* 示范用的小门：敲门时抖一下 */
+.demo-door{width:92px;margin:10px auto 0}
+.demo-door svg{width:100%;height:auto;display:block}
+.demo-door.pulse-S{animation:doorPulse .18s ease}
+.demo-door.pulse-L{animation:doorPulse .5s ease}
+@keyframes doorPulse{
+  0%{transform:scale(1)}45%{transform:scale(1.1) rotate(1.4deg)}100%{transform:scale(1)}
+}
+.knock-status{min-height:24px;font-size:15px;font-weight:800;color:var(--gold);margin:8px 0 2px}
+.knock-legend{font-size:12px;color:var(--muted);margin-top:8px}
+.knock-controls{display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin:8px 0 2px}
+/* 敲门大按钮：短按短敲 / 按住长敲 */
+.knock-btn{
+  width:118px;height:118px;border-radius:50%;border:none;cursor:pointer;
+  font-size:18px;font-weight:900;color:#2b1200;letter-spacing:3px;margin-top:8px;
+  background:radial-gradient(circle at 32% 28%,#ffcf6e,var(--orange) 68%);
+  box-shadow:0 6px 0 var(--orange-deep),0 14px 30px rgba(255,140,47,.3);
+  touch-action:none;user-select:none;-webkit-user-select:none;
+  transition:transform .12s ease,box-shadow .12s ease,filter .15s ease,opacity .2s ease;
+}
+.knock-btn:hover{filter:brightness(1.06)}
+.knock-btn.pressing{transform:scale(.93) translateY(4px);box-shadow:0 2px 0 var(--orange-deep)}
+.knock-btn.disabled{pointer-events:none;opacity:.4;filter:saturate(.5)}
+.knock-btn.shake{animation:shakeX .45s ease}
+@keyframes shakeX{
+  0%,100%{transform:translateX(0)}
+  18%{transform:translateX(-9px)}38%{transform:translateX(8px)}
+  58%{transform:translateX(-6px)}78%{transform:translateX(4px)}
+}
+.judge-text{
+  min-height:30px;text-align:center;font-size:19px;font-weight:900;letter-spacing:1px;
+}
+.judge-perfect{color:var(--gold)}
+.judge-good{color:var(--orange-2)}
+.judge-miss{color:var(--red)}
+.judge-text.pop{animation:popScale .4s cubic-bezier(.3,1.8,.5,1)}
+
+/* --- 住户互动 --- */
+.visit-head{display:flex;justify-content:space-between;align-items:baseline;font-size:14px;color:var(--muted)}
+.visit-head b{color:var(--text);font-size:17px}
+.visit-stage{position:relative;display:flex;justify-content:center;padding:10px 0 2px;min-height:190px}
+.fx-layer{position:absolute;inset:0;pointer-events:none;overflow:visible;z-index:5}
+.resident-avatar{width:180px;height:172px;position:relative;z-index:2}
+.resident-avatar svg{width:100%;height:100%}
+.player-corner{position:absolute;right:2%;bottom:-6px;width:72px;height:70px;opacity:.95;z-index:3}
+.player-corner svg{width:100%;height:100%}
+.speech{
+  position:relative;background:rgba(0,0,0,.3);border:1.5px solid var(--line-soft);
+  border-radius:14px;padding:10px 14px;margin:8px 0 12px;font-size:14.5px;min-height:46px;
+}
+.speech::before{
+  content:"";position:absolute;top:-7px;left:34px;width:12px;height:12px;
+  background:rgba(0,0,0,.3);border-left:1.5px solid var(--line-soft);border-top:1.5px solid var(--line-soft);
+  transform:rotate(45deg);
+}
+.mood-line{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--muted);margin-bottom:14px}
+.mood-line .bar{max-width:none}
+.mood-line b{color:var(--orange-2);min-width:56px;text-align:right;font-size:14px}
+.visit-actions{display:flex;gap:10px;flex-wrap:wrap}
+.visit-actions .btn{flex:1;min-width:150px}
+.visit-result{display:flex;flex-direction:column;gap:10px;text-align:center}
+.result-text{font-size:15px;font-weight:700}
+.result-text.ok{color:#9fe6b8}
+.result-text.bad{color:#ff9aa8}
+.sugar-rush{
+  background:linear-gradient(135deg,rgba(255,176,46,.2),rgba(255,140,47,.32));
+  border:2px dashed var(--orange-2);color:var(--gold);border-radius:14px;
+  padding:10px;font-weight:900;animation:popScale .45s cubic-bezier(.3,1.8,.5,1);
+}
+
+/* 住户开心 / 难过的动画（只动 transform） */
+.anim-jump{animation:jump .75s cubic-bezier(.3,1.6,.5,1) 2}
+@keyframes jump{
+  0%,100%{transform:translateY(0)}
+  30%{transform:translateY(-26px)}
+  50%{transform:translateY(0) scale(1.02,.94)}
+  70%{transform:translateY(-12px)}
+}
+.anim-spin{animation:spin .85s ease-in-out 2}
+@keyframes spin{to{transform:rotate(360deg)}}
+.anim-pop{animation:popScale .55s cubic-bezier(.3,1.8,.5,1) 2}
+@keyframes popScale{0%{transform:scale(.55)}60%{transform:scale(1.14)}100%{transform:scale(1)}}
+.anim-sad{animation:sadWobble .6s ease}
+@keyframes sadWobble{0%,100%{transform:translateX(0)}25%{transform:translateX(-7px) rotate(-3deg)}75%{transform:translateX(7px) rotate(3deg)}}
+
+/* 撒糖粒子（transform + opacity） */
+.candy-p{
+  position:absolute;left:50%;top:42%;width:22px;height:22px;z-index:6;pointer-events:none;
+  animation:candyFly .95s cubic-bezier(.17,.6,.4,1) forwards;
+}
+.candy-p svg{width:100%;height:100%}
+@keyframes candyFly{to{transform:translate(var(--dx),var(--dy)) rotate(var(--rot));opacity:0}}
+
+/* --- 结算 --- */
+.settle-badge{
+  text-align:center;font-size:26px;font-weight:900;letter-spacing:2px;
+  background:linear-gradient(180deg,#ffd76e,#ff8c2f);
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+  filter:drop-shadow(0 2px 0 rgba(0,0,0,.3));animation:popScale .5s cubic-bezier(.3,1.8,.5,1);
+}
+.settle-desc{text-align:center;color:var(--muted);font-size:14px;margin-top:6px}
+.settle-quote{
+  text-align:center;margin:14px auto 4px;font-size:15px;color:var(--text);
+  padding:10px 14px;border-top:1.5px dashed var(--line);border-bottom:1.5px dashed var(--line);
+}
+.settle-stats{display:flex;justify-content:center;gap:10px;margin:12px 0 4px}
+.settle-stats .stat{font-size:16px}
+
+/* 图鉴网格（结算页本轮 + 弹层历史共用） */
+.codex-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:12px}
+.codex-cell{
+  background:rgba(0,0,0,.26);border:1.5px solid var(--line-soft);border-radius:14px;
+  padding:8px 4px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:3px;
+}
+.codex-avatar{width:46px;height:44px}
+.codex-avatar svg{width:100%;height:100%}
+.codex-name{font-size:12px;font-weight:700}
+.codex-candy{font-size:12px;color:var(--orange-2);font-weight:800}
+.codex-tags{display:flex;gap:3px;flex-wrap:wrap;justify-content:center}
+.tag{
+  font-size:10px;padding:1px 6px;border-radius:99px;border:1px solid var(--line-soft);
+  color:#6f5d9c;background:transparent;
+}
+.tag.on{border-color:var(--orange-deep);background:rgba(255,176,46,.16);color:var(--gold)}
+.codex-stats{margin-top:12px;text-align:center;font-size:13px;color:var(--muted)}
+.codex-stats b{color:var(--orange-2)}
+.section-label{
+  margin-top:16px;font-size:13px;font-weight:800;color:var(--muted);
+  display:flex;align-items:center;gap:8px;
+}
+.section-label::before,.section-label::after{content:"";flex:1;height:1.5px;background:var(--line-soft)}
+
+/* --- 帮助 / 分享 --- */
+.help-list{display:flex;flex-direction:column;gap:10px;font-size:14px;color:var(--text)}
+.help-list li{margin-left:18px;color:#e6dcff}
+.share-img{width:100%;border-radius:14px;border:2px solid var(--line);display:block}
+.share-tip{font-size:12.5px;color:var(--muted);text-align:center;margin:10px 0 14px}
+
+/* Toast 轻提示 */
+#toast{
+  position:fixed;left:50%;top:16px;transform:translate(-50%,-16px);z-index:90;
+  background:rgba(24,12,48,.94);border:2px solid var(--line);border-radius:12px;
+  padding:9px 18px;font-size:14px;font-weight:700;opacity:0;pointer-events:none;
+  transition:opacity .25s,transform .25s;max-width:88vw;text-align:center;
+}
+#toast.show{opacity:1;transform:translate(-50%,0)}
+#toast.good{border-color:var(--orange-2);color:#ffe1b0}
+#toast.bad{border-color:var(--red);color:#ffc9cf}
+
+/* ============================================================
+   动画：通用入场
+   ============================================================ */
+@keyframes fadeUp{from{opacity:0;transform:translateY(14px)}}
+
+/* ============================================================
+   响应式：窄屏时门 2×2；更紧凑的间距
+   ============================================================ */
+@media (max-width:600px){
+  .doors-grid{grid-template-columns:repeat(2,1fr)}
+  .door-visual svg{max-width:82px}
+  .visit-actions .btn{min-width:100%}
+  .hud-title{font-size:15px}
+}
+
+/* ============================================================
+   系统开启"减少动态效果"时：关闭抖动 / 闪烁 / 装饰动画
+   （进度条过渡也会被压缩为瞬时跳变，功能不受影响）
+   ============================================================ */
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{
+    animation-duration:.001s !important;
+    animation-iteration-count:1 !important;
+    transition-duration:.001s !important;
+  }
+}
+</style>
+</head>
+<body>
+
+<!-- 夜空装饰层 -->
+<div class="sky">
+  <div class="moon"></div>
+  <div class="stars" id="stars"></div>
+  <svg class="bat" style="top:12vh;left:6vw" viewBox="0 0 48 24"><path d="M4 12 Q10 2 16 8 Q20 4 24 8 Q28 4 32 8 Q38 2 44 12 Q36 10 30 15 Q27 12 24 16 Q21 12 18 15 Q12 10 4 12Z" fill="#1a0f33"/></svg>
+  <svg class="bat b2" style="top:22vh;right:22vw" viewBox="0 0 48 24"><path d="M4 12 Q10 2 16 8 Q20 4 24 8 Q28 4 32 8 Q38 2 44 12 Q36 10 30 15 Q27 12 24 16 Q21 12 18 15 Q12 10 4 12Z" fill="#241640"/></svg>
+  <svg class="bat b3" style="top:8vh;left:30vw" viewBox="0 0 48 24"><path d="M4 12 Q10 2 16 8 Q20 4 24 8 Q28 4 32 8 Q38 2 44 12 Q36 10 30 15 Q27 12 24 16 Q21 12 18 15 Q12 10 4 12Z" fill="#241640"/></svg>
+</div>
+
+<!-- 捣蛋值爆表时的全屏红光遮罩 -->
+<div id="chaosOverlay"></div>
+
+<div id="app">
+  <!-- 顶部状态栏：糖果数 / 捣蛋值 / 剩余敲门次数 -->
+  <header id="hud" class="hidden">
+    <div class="hud-row">
+      <div class="hud-title">捣蛋小黄龙</div>
+      <div class="hud-stats">
+        <div class="stat stat-candy" id="statCandy"></div>
+        <div class="stat stat-mischief" id="statMischief"></div>
+      </div>
+    </div>
+    <div class="hud-mischief-row">
+      <span class="lbl">捣蛋值</span>
+      <div class="bar"><div class="bar-fill mischief-fill" id="mischiefFill"></div></div>
+    </div>
+    <div class="hud-sub">
+      <span>剩余敲门<span class="knock-dots" id="knockDots"></span></span>
+      <span id="hudChaos" class="hidden">街区大乱中！敲门有惊喜……或惊吓</span>
+    </div>
+  </header>
+
+  <main id="main"></main>
+</div>
+
+<div id="modalRoot"></div>
+<div id="toast"></div>
+
+<script>
+/* ============================================================================
+ * 捣蛋小黄龙 · 不给糖就捣蛋
+ * 单文件万圣节小游戏：节奏敲门 + 住户心情 + 双轨计分 + 图鉴收集
+ * 数据与逻辑分离：所有可调参数 / 文案集中在 CONFIG，运行时状态集中在 state
+ * ============================================================================ */
+
+/* ============================================================================
+ * 一、配置区 CONFIG（敲门暗号参数、心情阈值、捣蛋阈值、全部文案）
+ * ============================================================================ */
+const CONFIG = {
+
+  /* ---- 1. 敲门暗号参数 ---- */
+  rhythm: {
+    longThreshold: 320,   // 按住达到这个毫秒数算"长敲"（L），低于算"短敲"（S）
+    demoShort: 170,       // 示范时"短敲"的门板抖动时长
+    demoLong: 520,        // 示范时"长敲"的门板抖动时长
+    demoGap: 320,         // 示范时两下敲门之间的间隔
+    inputTimeout: 6000,   // 输入时隔这么久没敲下一下，自动判定（防止干等）
+  },
+
+  /* ---- 2. 心情值参数 ---- */
+  mood: {
+    max: 100,          // 心情值上限，满了触发"大把撒糖"
+    perfect: 45,       // 节奏判定"好"加的心情
+    good: 28,          // 节奏判定"一般"加的心情
+    miss: 8,           // 敲偏只加一点点心情
+    interactRight: 35, // 互动选对加的心情
+  },
+
+  /* ---- 3. 糖果增减 ---- */
+  candyGain: {
+    knockPerfect: 3,       // 敲得漂亮直接得的糖
+    knockGood: 1,          // 敲得一般得的糖
+    interactRight: [2, 3], // 互动选对随机得 2~3 颗
+    interactWrong: 1,      // 互动选错扣 1 颗
+    sugarRushBonus: 5,     // 心情拉满"大把撒糖"额外奖励
+    jackpot: [8, 12],      // 混乱事件里的"神秘大奖"随机得 8~12 颗
+  },
+
+  /* ---- 4. 捣蛋值 ---- */
+  mischief: {
+    max: 100,       // 捣蛋值上限，满了触发全屏搞怪事件
+    miss: 10,       // 敲偏 +10
+    interactWrong: 15, // 互动选错 +15
+  },
+
+  /* ---- 5. 轮次规则 ---- */
+  doorsPerRound: 4,      // 一轮共有 4 次敲门机会
+  maxKnocksPerDoor: 2,   // 同一扇门一轮最多敲 2 次（"要不要回头再敲"的决策点）
+
+  /* ---- 6. 混乱事件（捣蛋值爆表后）再敲门的随机结果 ---- */
+  chaosChances: {
+    jackpot: 0.4,   // 40% 概率神秘大奖
+    kicked: 0.25,   // 25% 概率被赶走，剩下 35% 正常进行
+  },
+
+  /* ---- 7. 四位住户：装扮、互动按钮文案、随机台词（每人 5~8 句） ---- */
+  residents: [
+    {
+      id: 'pumpkin', name: '南瓜龙', title: '南瓜田的热心掌门',
+      knock: ['S', 'S', 'L'], knockName: '两短一长',   // 本户敲门暗号：S 短 / L 长
+      trickLabel: '不给糖就捣蛋！', showLabel: '跳个南瓜舞',
+      lines: [
+        '吱呀～是来要糖的小家伙吗？我刚熬好一锅南瓜汤！',
+        '咚咚咚！吓得我的南瓜帽都歪了！',
+        '门口的小恐龙，闻起来有南瓜派的味道～',
+        '万圣节的月亮真圆，正适合分糖！',
+        '我的南瓜田今年大丰收，糖管够！',
+        '小家伙，你这身黄色装扮是本色出演恐龙吗？',
+        '别踩我的南瓜灯就好，糖随便拿！',
+        '咳咳，先让我看看你有没有礼貌～',
+      ],
+    },
+    {
+      id: 'ghost', name: '幽灵龙', title: '害羞的飘浮练习生',
+      knock: ['L', 'S', 'S'], knockName: '一长两短',
+      trickLabel: '不给糖就捣蛋！', showLabel: '讲个鬼故事',
+      lines: [
+        '呜……你、你居然能看见我呀……',
+        '咚咚声吓我一跳，我差点穿到地板下面去了！',
+        '嘿嘿，我飘来飘去练了一整晚恶作剧……',
+        '其实我只是想交个朋友……',
+        '今夜的风好冷，一起吃颗糖暖暖？',
+        '我房间里全是蜘蛛网，你可别嫌弃……',
+        '嘘——别告诉别人我把糖藏哪儿了。',
+      ],
+    },
+    {
+      id: 'vampire', name: '吸血鬼龙', title: '优雅的夜间贵族',
+      knock: ['L', 'L', 'S', 'S'], knockName: '两长两短',
+      trickLabel: '不给糖就捣蛋！', showLabel: '学蝙蝠倒挂',
+      lines: [
+        '哦？深夜访客，请讲。',
+        '我数了整整三百颗糖，正好可以分你一颗。',
+        '咚咚咚，这个节奏不错，颇有音乐素养。',
+        '本龙的城堡已经三百年没来过客人了。',
+        '辣椒糖还是草莓糖？这是个哲学问题。',
+        '月亮很美，不是吗？适合散步，也适合分糖。',
+        '斗篷是纯羊毛的，请别用爪子抓坏。',
+      ],
+    },
+    {
+      id: 'mummy', name: '木乃伊龙', title: '裹着绷带的糊涂蛋',
+      knock: ['S', 'S', 'S', 'L'], knockName: '三短一长',
+      trickLabel: '不给糖就捣蛋！', showLabel: '演木乃伊走路',
+      lines: [
+        '呃……等一下，我的绷带又松了……',
+        '咚咚！谁在外面？我缠绷带要三个小时呢！',
+        '我这一身是限量款，三千年的古董！',
+        '糖……糖能吃，就是会粘在绷带上……',
+        '别拉我的绷带！上次散开绕了整条街！',
+        '金字塔里太闷了，万圣节出来透透气～',
+        '哎哟，我好像把糖和绷带放混了……',
+      ],
+    },
+  ],
+
+  /* ---- 8. 互动反馈台词池 ---- */
+  reactions: {
+    happy: [
+      '哈哈，就冲你这份心意，糖拿去！',
+      '哎哟不错哦，这糖非给不可！',
+      '你太懂我了，来来来，糖管够！',
+      '嘿嘿，今晚第一份好心情给你了！',
+      '就这么愉快地决定了，糖给你！',
+    ],
+    sad: [
+      '唔……这个不太合我胃口。',
+      '喂！这样做可不礼貌哦！',
+      '唉，看来你还不懂我……',
+      '哼，糖要扣一颗！',
+      '这场面有点尴尬……',
+    ],
+  },
+
+  /* ---- 9. 混乱事件专属台词 ---- */
+  jackpotLine: '月光宝盒开启！住户哗啦啦倒出一大桶糖！！',
+  kickedLine: '砰！！门被狠狠关上了，你被赶走了……',
+
+  /* ---- 10. 结算评级（从上往下匹配，命中即止；最后一项为保底） ---- */
+  ratings: [
+    {
+      name: '捣蛋鬼王',
+      desc: '捣蛋值爆表，整条街都被你搅了个底朝天！',
+      check: (c, m) => m >= CONFIG.mischief.max,
+    },
+    {
+      name: '糖果大亨',
+      desc: '满袋而归！今晚整条街最阔气的小黄龙就是你。',
+      check: (c, m) => c >= 18 && m < 60,
+    },
+    {
+      name: '街区红人',
+      desc: '一半糖果一半恶名，住户们对你又爱又怕。',
+      check: (c, m) => m >= 60 && c >= 10,
+    },
+    {
+      name: '被赶走的倒霉蛋',
+      desc: '糖没捞到几颗，门倒是吃了好几记闭门羹……',
+      check: (c, m) => c <= 4,
+    },
+    {
+      name: '糖果学徒',
+      desc: '收获还不错！明年万圣节再战！',
+      check: () => true, // 保底评级
+    },
+  ],
+
+  /* ---- 11. 结算页随机万圣节台词 ---- */
+  settleLines: [
+    '今夜月光正好，糖果与恶作剧齐飞～',
+    '南瓜灯亮到天明，小黄龙满载而归！',
+    '捣蛋一时爽，糖果拿大把！',
+    '下一个万圣节，我们街上见！',
+    '糖果虽好，可不要贪吃哦～',
+    '今晚的战利品，够吃好久啦！',
+  ],
+};
+
+/* ============================================================================
+ * 二、存档（localStorage 持久化：图鉴收集 + 最佳纪录 + 音效偏好）
+ * ============================================================================ */
+const SAVE_KEY = 'tot_halloween_v1';
+
+/* 生成一份空白存档 */
+function defaultSave() {
+  const collection = {};
+  CONFIG.residents.forEach(r => {
+    collection[r.id] = { candies: 0, satisfied: false, jackpot: false, kicked: false };
+  });
+  return { collection, bestCandies: 0, bestRating: '', rounds: 0, sound: true };
+}
+
+/* 读取存档（坏档 / 无档都回退到空白档） */
+function loadSave() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(SAVE_KEY));
+    if (!raw || !raw.collection) return defaultSave();
+    const base = defaultSave();
+    const merged = Object.assign(base, raw); // 合并，防止旧档缺字段
+    delete merged.relaxed;                   // 旧版"宽松模式"字段已废弃
+    return merged;
+  } catch (e) { return defaultSave(); }
+}
+
+/* 写入存档 */
+function persist() {
+  try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch (e) {}
+}
+
+let save = loadSave();
+
+/* ============================================================================
+ * 三、运行时状态（统一 state 对象，每轮 startRound 里统一重置）
+ * ============================================================================ */
+const state = {
+  screen: 'start',     // start | street
+  phase: 'idle',       // idle | rhythm | visit | roll | settle
+  candies: 0,          // 本轮糖果数
+  mischief: 0,         // 本轮捣蛋值 0~100
+  knocksLeft: 0,       // 本轮剩余敲门次数
+  currentDoor: -1,     // 正在敲的门下标
+  doorProgress: [],    // 每扇门：{ resident, knocked, mood, satisfied, met, candyGiven, jackpot, kicked, pref }
+  chaos: false,        // 是否处于"街区大乱"状态
+  knockInChaos: false, // 本次敲门是否始于"街区大乱"状态
+  inputPhase: '',      // 暗号阶段：'' | demo | input | judging
+  inputKnocks: [],     // 玩家已敲出的短/长序列（'S'/'L'）
+  pressStart: 0,       // 敲门按钮按下的时间戳（performance.now）
+  demoTimers: [],      // 示范播放用的 setTimeout id 列表
+  inputTimer: 0,       // 输入超时自动判定的 timer id
+  roundResult: null,   // 本轮结算结果 { rating, line }
+};
+
+/* ============================================================================
+ * 四、工具函数
+ * ============================================================================ */
+const $ = s => document.querySelector(s);
+const rand = (min, max) => min + Math.random() * (max - min);        // 浮点随机
+const randInt = (min, max) => Math.floor(rand(min, max + 1));        // 整数随机（含两端）
+const pick = arr => arr[Math.floor(Math.random() * arr.length)];     // 随机取一项
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const residentById = id => CONFIG.residents.find(r => r.id === id);
+const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* 一扇门是否已经敲不了（撒糖 / 大奖 / 被赶走 / 次数用完） */
+const doorBlocked = dp => dp.satisfied || dp.jackpot || dp.kicked || dp.knocked >= CONFIG.maxKnocksPerDoor;
+
+/* ============================================================================
+   Web Audio 敲门音效（纯代码生成低音"咚"，不依赖任何外部音频资源）
+   ============================================================================ */
+let audioCtx = null;
+
+/* 创建 / 唤醒 AudioContext（浏览器要求必须在用户手势里解锁音频） */
+function ensureAudio() {
+  try {
+    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+  } catch (e) { audioCtx = null; }
+}
+
+/* 敲一声：低频正弦急速衰减；长敲更重更长，短敲轻而脆 */
+function thump(isLong) {
+  if (!save.sound || !audioCtx) return;
+  try {
+    const t = audioCtx.currentTime;
+    const dur = isLong ? 0.5 : 0.16;
+    const o = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(120, t);
+    o.frequency.exponentialRampToValueAtTime(50, t + dur);
+    g.gain.setValueAtTime(0.4, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+    o.connect(g); g.connect(audioCtx.destination);
+    o.start(t); o.stop(t + dur + 0.05);
+  } catch (e) {}
+}
+
+/* Fisher-Yates 洗牌（用于每轮随机安排住户住哪扇门） */
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+/* 把 HTML 字符串转成元素 */
+function el(html) {
+  const t = document.createElement('div');
+  t.innerHTML = html.trim();
+  return t.firstElementChild;
+}
+
+/* ============================================================================
+ * 五、小图标（内联 SVG，替代 emoji / 外部图片）
+ * ============================================================================ */
+function iconSVG(name) {
+  const paths = {
+    /* 糖果：圆糖 + 左右包装纸 */
+    candy: `<svg viewBox="0 0 24 24"><path d="M7 12 L1.5 7.5 v9 Z" fill="#ffb02e"/><path d="M17 12 L22.5 7.5 v9 Z" fill="#ffb02e"/><circle cx="12" cy="12" r="5.6" fill="#ff8c2f"/><circle cx="10.4" cy="10.4" r="1.4" fill="#ffd9a3"/></svg>`,
+    /* 捣蛋：小恶魔脸 */
+    devil: `<svg viewBox="0 0 24 24"><path d="M5 9 Q3.5 3.5 8 5 Q7 7 7.5 8.5 Z" fill="#ff6b8a"/><path d="M19 9 Q20.5 3.5 16 5 Q17 7 16.5 8.5 Z" fill="#ff6b8a"/><circle cx="12" cy="13" r="8" fill="#ff4d5e"/><circle cx="9" cy="12" r="1.5" fill="#2b1030"/><circle cx="15" cy="12" r="1.5" fill="#2b1030"/><path d="M8.5 16 Q12 19 15.5 16 Q14 17.5 12 17.5 Q10 17.5 8.5 16Z" fill="#2b1030"/></svg>`,
+    /* 星星 */
+    star: `<svg viewBox="0 0 24 24"><path d="M12 2 l2.6 6.2 6.4.5 -4.9 4.3 1.5 6.4 -5.6-3.4 -5.6 3.4 1.5-6.4 -4.9-4.3 6.4-.5Z" fill="#ffd76e"/></svg>`,
+  };
+  return paths[name] || '';
+}
+
+/* ============================================================================
+ * 六、小黄龙 SVG 工厂（主角 + 四种万圣节装扮住户，纯 SVG 手绘）
+ *    type: player | pumpkin | ghost | vampire | mummy
+ *    opts: { mood:'idle'|'happy'|'sad', chaos:是否戴墨镜(街区大乱变装) }
+ * ============================================================================ */
+function dragonSVG(type, opts = {}) {
+  const mood = opts.mood || 'idle';
+  /* 每种龙的配色 */
+  const P = {
+    player:   { body: '#ffd23f', body2: '#f5b833', belly: '#ffefa8', spike: '#ff9f1c', foot: '#f5c84c', op: 1 },
+    pumpkin:  { body: '#ffd23f', body2: '#f5b833', belly: '#ffefa8', spike: '#ff9f1c', foot: '#f5c84c', op: 1 },
+    ghost:    { body: '#e9e4ff', body2: '#cfc7f2', belly: '#f8f5ff', spike: '#c9c2f0', foot: '#dcd5f7', op: 0.94 },
+    vampire:  { body: '#ffd23f', body2: '#f5b833', belly: '#ffefa8', spike: '#ff9f1c', foot: '#f5c84c', op: 1 },
+    mummy:    { body: '#ffd23f', body2: '#f5b833', belly: '#ffefa8', spike: '#ff9f1c', foot: '#f5c84c', op: 1 },
+  }[type];
+
+  /* 眼睛：开心时眯成月牙，平时圆眼 */
+  const eyes = mood === 'happy'
+    ? `<path d="M76 93 q9 -9 18 0" stroke="#241a33" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+       <path d="M106 93 q9 -9 18 0" stroke="#241a33" stroke-width="3.5" fill="none" stroke-linecap="round"/>`
+    : `<circle cx="85" cy="92" r="11" fill="#fff"/><circle cx="127" cy="92" r="11" fill="#fff"/>
+       <circle cx="87" cy="94" r="5" fill="#241a33"/><circle cx="125" cy="94" r="5" fill="#241a33"/>
+       <circle cx="84.5" cy="90.5" r="1.8" fill="#fff"/><circle cx="122.5" cy="90.5" r="1.8" fill="#fff"/>`;
+
+  /* 嘴：开心大笑 / 难过撇嘴 / 平时微笑 */
+  const mouth = mood === 'happy'
+    ? `<path d="M93 110 q13 17 26 0 z" fill="#7a3720"/><ellipse cx="106" cy="118" rx="6" ry="3.4" fill="#ff8f8f"/>`
+    : mood === 'sad'
+      ? `<path d="M97 119 q9 -8 18 0" stroke="#7a4a1d" stroke-width="3" fill="none" stroke-linecap="round"/>`
+      : `<path d="M96 112 q10 9 20 0" stroke="#7a4a1d" stroke-width="3" fill="none" stroke-linecap="round"/>`;
+
+  /* 各装扮附加元素：outfitBack 垫在身体后面，outfitFront 盖在身体上面 */
+  let outfitBack = '', outfitFront = '';
+  if (type === 'pumpkin') {
+    /* 南瓜帽：橙色帽体 + 绿柄 + 瓜棱线 */
+    outfitFront = `<path d="M86 46 q20 -17 40 0 l-5 13 q-15 -7 -30 0 Z" fill="#ff8c2f"/>
+      <rect x="102" y="27" width="7" height="15" rx="3.5" fill="#3d8b37"/>
+      <path d="M96 40 q10 7 20 0" stroke="#e06d1a" stroke-width="2.5" fill="none"/>`;
+  } else if (type === 'vampire') {
+    /* 吸血鬼：黑色锯齿斗篷垫在身后，红领结 + 尖牙画在身前 */
+    outfitBack = `<path d="M52 88 L40 178 L72 162 L106 180 L140 162 L172 178 L160 88 Q106 58 52 88 Z" fill="#3b2a5e"/>`;
+    outfitFront = `<path d="M94 70 l12 -7 v16 Z M118 70 l-12 -7 v16 Z" fill="#e03131"/>
+      <path d="M98 121 l3.5 9 3.5 -9 Z" fill="#fff"/><path d="M107 121 l3.5 9 3.5 -9 Z" fill="#fff"/>`;
+  } else if (type === 'mummy') {
+    /* 木乃伊：几条交叉绷带 */
+    outfitFront = `<g stroke="#f2ead8" stroke-width="9" stroke-linecap="round" opacity=".9">
+      <path d="M54 88 Q106 104 158 86" fill="none"/>
+      <path d="M60 132 Q106 118 152 134" fill="none"/>
+      <path d="M88 58 Q80 84 92 104" fill="none"/>
+      <path d="M128 62 Q136 86 124 108" fill="none" opacity=".75"/>
+      </g>`;
+  }
+
+  /* 街区大乱时的"变装"：酷酷的墨镜 */
+  const shades = opts.chaos
+    ? `<g><rect x="71" y="85" width="28" height="15" rx="5" fill="#1c1533"/>
+       <rect x="103" y="85" width="28" height="15" rx="5" fill="#1c1533"/>
+       <rect x="97" y="90" width="8" height="4" fill="#1c1533"/>
+       <path d="M71 90 L58 85 M131 90 L144 85" stroke="#1c1533" stroke-width="3.5" stroke-linecap="round"/></g>`
+    : '';
+
+  /* 主角专属：右手拎南瓜糖果桶 */
+  const bucket = type === 'player'
+    ? `<g transform="translate(158,128)">
+        <path d="M-4 -12 q4 -8 8 0" stroke="#3d8b37" stroke-width="4" fill="none" stroke-linecap="round"/>
+        <ellipse cx="0" cy="10" rx="17" ry="14" fill="#ff8c2f"/>
+        <path d="M-8 -2 q8 20 0 22 M8 -2 q-8 20 0 22" stroke="#e06d1a" stroke-width="2.5" fill="none"/>
+        <ellipse cx="0" cy="0" rx="15" ry="5" fill="#5e2f10"/>
+        <circle cx="-5" cy="-1" r="3.4" fill="#ff6b9d"/><circle cx="4" cy="-2" r="3" fill="#7ee081"/><circle cx="8" cy="0" r="2.6" fill="#ffd23f"/>
+      </g>`
+    : '';
+
+  /* 幽灵龙的波浪底边替换普通脚 */
+  const feet = type === 'ghost'
+    ? `<path d="M72 158 q8 11 17 0 q8 11 17 0 q8 11 17 0 q8 11 17 0 l0 12 q-34 8 -68 0 Z" fill="${P.foot}" opacity=".9"/>`
+    : `<ellipse cx="82" cy="168" rx="15" ry="8.5" fill="${P.foot}"/><ellipse cx="130" cy="168" rx="15" ry="8.5" fill="${P.foot}"/>`;
+
+  return `<svg viewBox="0 0 200 190" xmlns="http://www.w3.org/2000/svg">
+    <g opacity="${P.op}">
+      <!-- 尾巴 -->
+      <path d="M44 148 Q8 140 16 116 Q22 132 50 136 Z" fill="${P.body2}"/>
+      ${outfitBack}
+      <!-- 身体 -->
+      <ellipse cx="106" cy="112" rx="62" ry="58" fill="${P.body}"/>
+      <!-- 背刺 -->
+      <path d="M72 60 l10 -20 11 18 Z" fill="${P.spike}"/>
+      <path d="M94 54 l11 -22 12 20 Z" fill="${P.spike}"/>
+      <path d="M118 58 l11 -18 9 19 Z" fill="${P.spike}"/>
+      <!-- 肚皮 -->
+      <ellipse cx="106" cy="132" rx="36" ry="30" fill="${P.belly}"/>
+      <!-- 小手 -->
+      <circle cx="52" cy="122" r="9.5" fill="${P.body}"/>
+      <circle cx="160" cy="122" r="9.5" fill="${P.body}"/>
+      <!-- 脸 -->
+      <ellipse cx="70" cy="110" rx="6.5" ry="4.5" fill="#ff9e9e" opacity=".65"/>
+      <ellipse cx="142" cy="110" rx="6.5" ry="4.5" fill="#ff9e9e" opacity=".65"/>
+      ${eyes}
+      <circle cx="102" cy="104" r="1.6" fill="#7a4a1d"/><circle cx="111" cy="104" r="1.6" fill="#7a4a1d"/>
+      ${mouth}
+      ${outfitFront}
+      ${shades}
+      ${feet}
+      ${bucket}
+    </g>
+  </svg>`;
+}
+
+/* 门 SVG（四种紫色调门板，纯手绘） */
+function doorSVG(i) {
+  const palettes = [
+    ['#6d4aa8', '#5b3f92'], ['#8a4a9c', '#733a84'],
+    ['#5a6ad8', '#4a56b8'], ['#a85a7c', '#8d4a68'],
+  ];
+  const [main, inner] = palettes[i % 4];
+  return `<svg viewBox="0 0 120 158" xmlns="http://www.w3.org/2000/svg">
+    <rect x="6" y="148" width="108" height="8" rx="3" fill="#241640"/>
+    <rect x="16" y="6" width="88" height="142" rx="10" fill="#4a3270"/>
+    <rect x="24" y="14" width="72" height="132" rx="7" fill="${main}"/>
+    <rect x="26" y="17" width="26" height="126" rx="6" fill="rgba(255,255,255,.09)"/>
+    <rect x="35" y="28" width="50" height="46" rx="5" fill="${inner}" stroke="rgba(0,0,0,.28)"/>
+    <rect x="35" y="86" width="50" height="52" rx="5" fill="${inner}" stroke="rgba(0,0,0,.28)"/>
+    <circle cx="84" cy="82" r="5.5" fill="#ffb02e" stroke="#c77f16" stroke-width="2"/>
+    <circle cx="84" cy="79" r="1.6" fill="#7a4a1d"/>
+  </svg>`;
+}
+
+/* ============================================================================
+ * 七、渲染：HUD / 开始界面 / 街区
+ * ============================================================================ */
+
+/* 更新顶部状态栏（糖果 / 捣蛋值条 / 剩余敲门圆点） */
+function renderHUD() {
+  $('#hud').classList.remove('hidden');
+  $('#statCandy').innerHTML = `${iconSVG('candy')}<b>${state.candies}</b>`;
+  $('#statMischief').innerHTML = `${iconSVG('devil')}<b>${state.mischief}</b>`;
+  $('#mischiefFill').style.transform = `scaleX(${state.mischief / CONFIG.mischief.max})`;
+  const dots = Array.from({ length: CONFIG.doorsPerRound }, (_, i) =>
+    `<i class="${i < state.knocksLeft ? 'on' : ''}"></i>`).join('');
+  $('#knockDots').innerHTML = dots;
+  $('#hudChaos').classList.toggle('hidden', !state.chaos);
+}
+
+/* HUD 数字跳动反馈 */
+function bumpStat(id) {
+  const n = $(id);
+  if (!n || prefersReduced) return;
+  n.classList.remove('bump');
+  void n.offsetWidth; // 强制重排以重新触发动画
+  n.classList.add('bump');
+}
+
+/* 开始界面 */
+function renderStart() {
+  state.screen = 'start';
+  $('#hud').classList.add('hidden');
+  const best = save.rounds > 0
+    ? `最佳纪录：<b>${save.bestRating || '无'}</b>（单轮 ${save.bestCandies} 颗糖）· 已玩 ${save.rounds} 轮`
+    : '第一次出门捣蛋？祝你好运！';
+  $('#main').innerHTML = `
+    <div class="screen hero">
+      <div class="hero-dragon">${dragonSVG('player', { mood: 'happy' })}</div>
+      <div class="game-title">不给糖就捣蛋</div>
+      <div class="game-sub">捣蛋小黄龙的万圣节之夜</div>
+      <div class="start-card">
+        <button class="btn btn-block" data-action="start">开始捣蛋</button>
+        <div class="btn-row">
+          <button class="btn btn-ghost" data-action="openCodex">糖果图鉴</button>
+          <button class="btn btn-ghost" data-action="openHelp">玩法说明</button>
+        </div>
+        <div class="best-line">${best}</div>
+      </div>
+    </div>`;
+}
+
+/* 街区界面：四扇门 */
+function renderStreet() {
+  state.screen = 'street';
+  state.phase = 'street';
+  renderHUD();
+  const cards = state.doorProgress.map((dp, i) => {
+    const blocked = doorBlocked(dp);
+    const exhausted = !dp.satisfied && !dp.jackpot && !dp.kicked && dp.knocked >= CONFIG.maxKnocksPerDoor;
+    const disabled = blocked || state.knocksLeft <= 0;
+    const dots = Array.from({ length: CONFIG.maxKnocksPerDoor }, (_, k) =>
+      `<i class="${k < dp.knocked ? 'on' : ''}"></i>`).join('');
+    /* 敲过的门显示住户剪影 + 心情进度 + 已敲次数；没敲过显示 ??? */
+    const info = dp.met
+      ? `<div class="door-resident">
+           <div class="mini-dragon">${dragonSVG(dp.resident, { chaos: state.chaos })}</div>
+           <div class="bar mini-bar"><div class="bar-fill mini-fill" style="transform:scaleX(${clamp(dp.mood, 0, 100) / 100})"></div></div>
+           <div class="knock-count">${dots}</div>
+         </div>`
+      : `<div class="door-info door-unknown">？？？</div>`;
+    const badge = dp.satisfied
+      ? `<div class="door-badge badge-sugar">已撒糖</div>`
+      : dp.jackpot
+        ? `<div class="door-badge badge-sugar">神秘大奖！</div>`
+        : dp.kicked
+          ? `<div class="door-badge badge-tired">被赶走了</div>`
+          : exhausted
+            ? `<div class="door-badge badge-tired">不想再开门</div>`
+            : (state.chaos && !dp.met ? `<div class="door-badge badge-new">?!</div>` : '');
+    return `
+      <div class="door-card ${disabled ? 'disabled' : ''} ${(dp.satisfied || dp.jackpot) ? 'satisfied' : ''}" data-action="knockDoor" data-arg="${i}">
+        ${badge || ''}
+        <div class="door-label">第 ${i + 1} 户</div>
+        <div class="door-visual">${doorSVG(i)}</div>
+        ${info}
+      </div>`;
+  }).join('');
+  $('#main').innerHTML = `
+    <div class="screen">
+      <div class="street-tip">
+        <span>敲一扇门，开始要糖！</span>
+        <span>共 ${CONFIG.doorsPerRound} 次机会 · 每门限 ${CONFIG.maxKnocksPerDoor} 次</span>
+      </div>
+      <div class="doors-grid ${state.chaos ? 'street-chaos' : ''}" id="doorsGrid">${cards}</div>
+      <div class="street-footer">
+        <span>轻点短敲 · 按住长敲</span>
+        <div class="btn-row" style="flex:none">
+          <button class="btn btn-ghost" data-action="openCodex" style="min-height:38px;padding:6px 14px">图鉴</button>
+          <button class="btn btn-ghost" data-action="openHelp" style="min-height:38px;padding:6px 14px">说明</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+/* ============================================================================
+ * 八、弹层骨架与 Toast
+ * ============================================================================ */
+function openModal(html, dismissible = false) {
+  $('#modalRoot').innerHTML =
+    `<div class="modal ${dismissible ? 'dismissible' : ''}" data-action="closeModal">
+       <div class="modal-card">${html}</div>
+     </div>`;
+}
+function closeModal() {
+  $('#modalRoot').innerHTML = '';
+}
+
+let toastTimer = 0;
+/* 轻提示：type = good | bad | 空 */
+function showToast(text, type = '') {
+  const t = $('#toast');
+  t.textContent = text;
+  t.className = `show ${type}`;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { t.className = ''; }, 1900);
+}
+
+/* ============================================================================
+ * 九、核心流程：开局 → 敲门 → 节奏判定 → 互动 / 混乱事件 → 结算
+ * ============================================================================ */
+
+/* 开新一轮：统一重置本轮状态，随机安排住户与偏好 */
+function startRound() {
+  state.candies = 0;
+  state.mischief = 0;
+  state.knocksLeft = CONFIG.doorsPerRound;
+  state.currentDoor = -1;
+  state.chaos = false;
+  state.roundResult = null;
+  clearKnockTimers();
+  state.doorProgress = shuffle(CONFIG.residents.map(r => ({
+    resident: r.id,                          // 这扇门住的住户（每轮随机洗牌）
+    knocked: 0,                              // 已敲次数
+    mood: 0,                                 // 累积心情
+    satisfied: false,                        // 是否已触发大把撒糖
+    met: false,                              // 玩家是否见过住户
+    candyGiven: 0,                           // 本轮从这户拿到的糖
+    jackpot: false,                          // 本轮是否触发神秘大奖
+    kicked: false,                           // 本轮是否被这户赶走
+    pref: Math.random() < 0.5 ? 'trick' : 'show', // 住户本轮随机偏好
+  })));
+  $('#chaosOverlay').classList.remove('on');
+  renderStreet();
+}
+
+/* 点击一扇门：校验状态 → 消耗次数 → 打开敲门暗号弹层 */
+function knockDoor(i) {
+  const dp = state.doorProgress[i];
+  if (state.knocksLeft <= 0 || doorBlocked(dp)) return;
+  ensureAudio(); // 借用户手势解锁音频
+  state.knocksLeft -= 1;
+  dp.knocked += 1;
+  dp.met = true;
+  state.currentDoor = i;
+  state.knockInChaos = state.chaos; // 记录这次敲门是否始于"街区大乱"状态
+  state.phase = 'rhythm';
+  renderHUD();
+  openRhythmModal(i);
+}
+
+/* ---------- 敲门暗号：渲染与辅助 ---------- */
+
+/* 短/长符号 HTML：kind='sym' 实心示范符号 / 'slot' 虚线空槽（提示该敲的形状） */
+function patternSymbols(pattern, kind) {
+  return pattern.map(t => `<span class="sym ${kind} sym-${t}"></span>`).join('');
+}
+
+/* 当前门住户的暗号序列 */
+function currentPattern() {
+  const dp = state.doorProgress[state.currentDoor];
+  return residentById(dp.resident).knock;
+}
+
+/* 更新暗号弹层状态行文字 */
+function setStatus(text) {
+  const s = $('#knockStatus');
+  if (s) s.textContent = text;
+}
+
+/* 清空暗号相关的所有计时器与输入状态 */
+function clearKnockTimers() {
+  state.demoTimers.forEach(clearTimeout);
+  state.demoTimers = [];
+  clearTimeout(state.inputTimer);
+  state.inputTimer = 0;
+  state.pressStart = 0;
+  state.inputKnocks = [];
+  state.inputPhase = '';
+}
+
+/* 敲一下门：门板抖动 + 音效（示范与玩家输入共用） */
+function pulseDoor(type) {
+  const door = $('#demoDoor');
+  if (door && !prefersReduced) {
+    door.classList.remove('pulse-S', 'pulse-L');
+    void door.offsetWidth; // 强制重排以重新触发动画
+    door.classList.add(`pulse-${type}`);
+  }
+  thump(type === 'L');
+}
+
+/* 播放暗号示范：符号逐个点亮 + 门板逐下抖动，结束后自动进入输入阶段 */
+function playDemo() {
+  state.demoTimers.forEach(clearTimeout);
+  state.demoTimers = [];
+  state.inputPhase = 'demo';
+  state.inputKnocks = [];
+
+  const pattern = currentPattern();
+  const box = $('#knockSymbols');
+  if (box) box.innerHTML = patternSymbols(pattern, 'sym');
+  renderInputSlots(pattern);
+  const jt = $('#judgeText');
+  if (jt) { jt.textContent = ''; jt.className = 'judge-text'; }
+  setStatus('听住户示范暗号……');
+  updateKnockButton();
+
+  const R = CONFIG.rhythm;
+  let t = 600; // 示范前稍作停顿
+  pattern.forEach((type, idx) => {
+    state.demoTimers.push(setTimeout(() => {
+      if (state.inputPhase !== 'demo') return;
+      const sym = box && box.children[idx];
+      if (sym) sym.classList.add('lit');
+      pulseDoor(type);
+    }, t));
+    t += (type === 'L' ? R.demoLong : R.demoShort) + R.demoGap;
+  });
+  state.demoTimers.push(setTimeout(() => {
+    if (state.inputPhase !== 'demo') return;
+    startInput(pattern);
+  }, t));
+}
+
+/* 进入输入阶段：清空输入，提示玩家复敲 */
+function startInput(pattern) {
+  state.inputPhase = 'input';
+  state.inputKnocks = [];
+  renderInputSlots(pattern);
+  setStatus(`轮到你了！共 ${pattern.length} 下`);
+  updateKnockButton();
+  armInputTimeout(pattern);
+}
+
+/* 输入超时：隔太久没敲下一下就自动判定（防止干等） */
+function armInputTimeout(pattern) {
+  clearTimeout(state.inputTimer);
+  state.inputTimer = setTimeout(() => {
+    if (state.inputPhase === 'input') judgeRhythm();
+  }, CONFIG.rhythm.inputTimeout);
+}
+
+/* 画输入槽行：虚线槽 = 期望形状，实心 = 已敲出的形状（判定前不显对错） */
+function renderInputSlots(pattern) {
+  const box = $('#knockSlots');
+  if (!box) return;
+  box.innerHTML = pattern.map((t, i) => {
+    const got = state.inputKnocks[i];
+    return got
+      ? `<span class="sym filled sym-${got}"></span>`
+      : `<span class="sym dashed sym-${t}"></span>`;
+  }).join('');
+}
+
+/* 敲门按钮按阶段启用 / 禁用 */
+function updateKnockButton() {
+  const btn = $('#knockBtn');
+  if (btn) btn.classList.toggle('disabled', state.inputPhase !== 'input');
+}
+
+/* 音效开关按钮文字 */
+function updateSoundBtn() {
+  const b = $('#soundBtn');
+  if (b) b.textContent = save.sound ? '音效：开' : '音效：关';
+}
+
+/* 敲门暗号弹层：暗号名 + 示范符号 + 小门 + 输入槽 + 控制按钮 + 大敲门按钮 */
+function openRhythmModal(i) {
+  const dp = state.doorProgress[i];
+  const r = residentById(dp.resident);
+  openModal(`
+    <div class="modal-title">敲响第 ${i + 1} 户的门</div>
+    <div class="modal-sub">每户都有专属敲门暗号——听示范，敲对暗号糖更多！</div>
+    <div class="knock-wrap">
+      <div class="knock-name">${r.name}的暗号 · ${r.knockName}</div>
+      <div class="symbols" id="knockSymbols"></div>
+      <div class="demo-door" id="demoDoor">${doorSVG(i)}</div>
+      <div class="knock-status" id="knockStatus">听住户示范暗号……</div>
+      <div class="symbols" id="knockSlots"></div>
+      <div class="knock-legend">虚线槽 = 该敲的形状（点 = 短敲 · 条 = 长敲）；轻点短敲，按住约三分之一秒长敲</div>
+      <div class="knock-controls">
+        <button class="btn-mini" data-action="replayDemo">重看示范</button>
+        <button class="btn-mini" data-action="resetInput">重新敲</button>
+        <button class="btn-mini" id="soundBtn" data-action="toggleSound"></button>
+      </div>
+      <div class="judge-text" id="judgeText"></div>
+      <button class="knock-btn disabled" id="knockBtn">敲门</button>
+    </div>`);
+  updateSoundBtn();
+  bindKnockButton(currentPattern());
+  playDemo();
+}
+
+/* 绑定敲门大按钮：短按短敲（S），按住超过 longThreshold 长敲（L） */
+function bindKnockButton(pattern) {
+  const btn = $('#knockBtn');
+  if (!btn) return;
+
+  const down = (e) => {
+    if (state.inputPhase !== 'input') return;
+    e.preventDefault();
+    ensureAudio();
+    try { btn.setPointerCapture(e.pointerId); } catch (err) {}
+    state.pressStart = performance.now();
+    btn.classList.add('pressing');
+  };
+  const up = () => {
+    if (state.inputPhase !== 'input' || !state.pressStart) return;
+    const dur = performance.now() - state.pressStart;
+    state.pressStart = 0;
+    btn.classList.remove('pressing');
+    const type = dur >= CONFIG.rhythm.longThreshold ? 'L' : 'S';
+    state.inputKnocks.push(type);
+    pulseDoor(type);
+    renderInputSlots(pattern);
+    if (state.inputKnocks.length >= pattern.length) { judgeRhythm(); return; }
+    setStatus(`已敲 ${state.inputKnocks.length} / ${pattern.length} 下`);
+    armInputTimeout(pattern);
+  };
+  const cancel = () => {
+    state.pressStart = 0;
+    btn.classList.remove('pressing');
+  };
+
+  btn.addEventListener('pointerdown', down);
+  btn.addEventListener('pointerup', up);
+  btn.addEventListener('pointercancel', cancel);
+  /* 屏蔽手机长按弹出的系统菜单 */
+  btn.addEventListener('contextmenu', (e) => e.preventDefault());
+}
+
+/* 暗号判定：把玩家敲出的短/长序列与住户暗号逐位比对
+   全对 = perfect；敲错 1 下 = good；错 2 下及以上（或数量不够）= miss */
+function judgeRhythm() {
+  if (state.inputPhase !== 'input') return;
+  state.inputPhase = 'judging';
+  clearTimeout(state.inputTimer);
+  state.pressStart = 0;
+
+  const dp = state.doorProgress[state.currentDoor];
+  const pattern = currentPattern();
+  const input = state.inputKnocks;
+  let result;
+  if (input.length !== pattern.length) {
+    result = 'miss'; // 超时自动判定，敲的次数不够
+  } else {
+    const wrong = pattern.filter((t, idx) => input[idx] !== t).length;
+    result = wrong === 0 ? 'perfect' : wrong === 1 ? 'good' : 'miss';
+  }
+
+  /* 输入槽按对错上色：绿 = 敲对，红 = 敲错 */
+  const slots = $('#knockSlots');
+  if (slots) {
+    pattern.forEach((t, idx) => {
+      const cell = slots.children[idx];
+      const got = input[idx];
+      if (cell && got) cell.className = `sym filled sym-${got} ${got === t ? 'ok' : 'bad'}`;
+    });
+  }
+
+  const jt = $('#judgeText');
+  const btn = $('#knockBtn');
+  if (btn) btn.classList.add('disabled');
+
+  if (result === 'miss') {
+    /* 敲错：抖动 + 捣蛋值上升 */
+    state.mischief = clamp(state.mischief + CONFIG.mischief.miss, 0, CONFIG.mischief.max);
+    dp.mood += CONFIG.mood.miss;
+    if (btn && !prefersReduced) btn.classList.add('shake');
+    if (jt) { jt.textContent = '敲错了！住户一脸不高兴……'; jt.className = 'judge-text judge-miss pop'; }
+    showToast('敲错了！捣蛋值 +10', 'bad');
+  } else {
+    const gain = result === 'perfect' ? CONFIG.candyGain.knockPerfect : CONFIG.candyGain.knockGood;
+    state.candies += gain;
+    dp.candyGiven += gain;
+    dp.mood += result === 'perfect' ? CONFIG.mood.perfect : CONFIG.mood.good;
+    if (jt) {
+      jt.textContent = result === 'perfect' ? '暗号全对！住户眉开眼笑！' : '差一点全对，住户点了点头。';
+      jt.className = `judge-text judge-${result} pop`;
+    }
+    showToast(result === 'perfect' ? `暗号完美！糖果 +${gain}` : `敲错一下，糖果 +${gain}`, 'good');
+  }
+  renderHUD();
+  bumpStat(result === 'miss' ? '#statMischief' : '#statCandy');
+
+  /* 敲错可能把捣蛋值堆满 → 触发全屏搞怪事件（本次敲门仍正常走完） */
+  if (state.mischief >= CONFIG.mischief.max) checkChaos();
+
+  /* 短暂展示判定结果，再决定走向：
+     大乱状态下的敲门掷骰子；敲门已把心情拉满则直接大把撒糖；否则正常互动 */
+  setTimeout(() => {
+    if (state.knockInChaos) doChaosRoll();
+    else enterVisit();
+  }, 1050);
+}
+
+/* 混乱事件后的敲门：掷骰子决定 神秘大奖 / 被赶走 / 正常进行 */
+function doChaosRoll() {
+  const dp = state.doorProgress[state.currentDoor];
+  const roll = Math.random();
+  if (roll < CONFIG.chaosChances.jackpot) {
+    /* —— 神秘大奖 —— */
+    const gain = randInt(CONFIG.candyGain.jackpot[0], CONFIG.candyGain.jackpot[1]);
+    state.candies += gain;
+    dp.candyGiven += gain;
+    dp.jackpot = true;
+    bumpStat('#statCandy');
+    renderHUD();
+    openModal(`
+      <div class="modal-title">神秘大奖！</div>
+      <div class="visit-stage">
+        <div class="fx-layer" id="fxLayer"></div>
+        <div class="resident-avatar">${dragonSVG(dp.resident, { mood: 'happy', chaos: true })}</div>
+      </div>
+      <div class="visit-result">
+        <div class="result-text ok">${CONFIG.jackpotLine}</div>
+        <div class="sugar-rush">糖果 +${gain}！</div>
+        <button class="btn" data-action="continueVisit">继续</button>
+      </div>`);
+    spawnCandies($('#fxLayer'), 20);
+    showToast(`神秘大奖！糖果 +${gain}`, 'good');
+  } else if (roll < CONFIG.chaosChances.jackpot + CONFIG.chaosChances.kicked) {
+    /* —— 被赶走 —— */
+    dp.kicked = true;
+    openModal(`
+      <div class="modal-title">哎呀……</div>
+      <div class="visit-stage">
+        <div class="resident-avatar" style="opacity:.85">${dragonSVG(dp.resident, { mood: 'sad', chaos: true })}</div>
+        <div class="player-corner">${dragonSVG('player', { mood: 'sad' })}</div>
+      </div>
+      <div class="visit-result">
+        <div class="result-text bad">${CONFIG.kickedLine}</div>
+        <div class="result-text bad">这扇门今晚不会再开了……</div>
+        <button class="btn" data-action="continueVisit">灰溜溜地离开</button>
+      </div>`);
+    showToast('被赶走了！什么都没捞到……', 'bad');
+  } else {
+    /* —— 正常进行 —— */
+    enterVisit();
+  }
+}
+
+/* 拉满心情的状态结算（敲门拉满 / 互动拉满 共用） */
+function applySugarRush(dp) {
+  dp.satisfied = true;
+  dp.mood = CONFIG.mood.max;
+  state.candies += CONFIG.candyGain.sugarRushBonus;
+  dp.candyGiven += CONFIG.candyGain.sugarRushBonus;
+}
+
+/* 敲门阶段就把心情拉满：直接进入大把撒糖结算画面 */
+function sugarRushModal() {
+  const dp = state.doorProgress[state.currentDoor];
+  const r = residentById(dp.resident);
+  applySugarRush(dp);
+  renderHUD();
+  bumpStat('#statCandy');
+  openModal(`
+    <div class="modal-title">心情值拉满！</div>
+    <div class="visit-stage">
+      <div class="fx-layer" id="fxLayer"></div>
+      <div class="resident-avatar">${dragonSVG(r.id, { mood: 'happy', chaos: state.chaos })}</div>
+      <div class="player-corner">${dragonSVG('player', { mood: 'happy' })}</div>
+    </div>
+    <div class="speech">${r.name}开心到起飞——大把撒糖！</div>
+    <div class="visit-result">
+      <div class="sugar-rush">糖果 +${CONFIG.candyGain.sugarRushBonus}！</div>
+      <button class="btn" data-action="continueVisit">继续</button>
+    </div>`);
+  spawnCandies($('#fxLayer'), 18);
+  showToast('大把撒糖！额外糖果 +5', 'good');
+}
+
+/* 进入住户互动；若敲门已把心情拉满则直接撒糖收工 */
+function enterVisit() {
+  const dp = state.doorProgress[state.currentDoor];
+  if (dp.mood >= CONFIG.mood.max && !dp.satisfied) sugarRushModal();
+  else openVisitModal();
+}
+
+/* 住户互动弹层：现身 → 台词 → 心情条 → 两个互动按钮 */
+function openVisitModal() {
+  state.phase = 'visit';
+  const i = state.currentDoor;
+  const dp = state.doorProgress[i];
+  const r = residentById(dp.resident);
+  openModal(`
+    <div class="visit-head"><b>${r.name}</b><span>${r.title} · 第 ${i + 1} 户</span></div>
+    <div class="visit-stage">
+      <div class="fx-layer" id="fxLayer"></div>
+      <div class="resident-avatar" id="residentAvatar">${dragonSVG(r.id, { chaos: state.chaos })}</div>
+      <div class="player-corner">${dragonSVG('player')}</div>
+    </div>
+    <div class="speech" id="speech">${pick(r.lines)}</div>
+    <div class="mood-line">心情
+      <div class="bar"><div class="bar-fill mood-fill" id="moodFill" style="transform:scaleX(${clamp(dp.mood, 0, 100) / 100})"></div></div>
+      <b id="moodNum">${clamp(dp.mood, 0, 100)} / ${CONFIG.mood.max}</b>
+    </div>
+    <div class="visit-actions" id="visitActions">
+      <button class="btn" data-action="interact" data-arg="trick">${r.trickLabel}</button>
+      <button class="btn btn-ghost" data-action="interact" data-arg="show">${r.showLabel}</button>
+    </div>`);
+}
+
+/* 更新互动弹层里的心情条 */
+function updateMoodUI() {
+  const dp = state.doorProgress[state.currentDoor];
+  const m = clamp(dp.mood, 0, CONFIG.mood.max);
+  const fill = $('#moodFill'), num = $('#moodNum');
+  if (fill) fill.style.transform = `scaleX(${m / 100})`;
+  if (num) num.textContent = `${m} / ${CONFIG.mood.max}`;
+}
+
+/* 选择互动（trick / show）：对上住户偏好就涨心情给糖，选错扣糖涨捣蛋 */
+function chooseInteract(choice) {
+  if (state.phase !== 'visit') return;
+  state.phase = 'interacted';
+  const dp = state.doorProgress[state.currentDoor];
+  const r = residentById(dp.resident);
+  const ok = choice === dp.pref;
+  let resultHTML = '';
+
+  if (ok) {
+    /* 选对：心情上涨 + 糖果增加 + 随机开心动画（跳跳 / 转圈 / 撒糖） */
+    dp.mood += CONFIG.mood.interactRight;
+    const gain = randInt(CONFIG.candyGain.interactRight[0], CONFIG.candyGain.interactRight[1]);
+    state.candies += gain;
+    dp.candyGiven += gain;
+    const anim = pick(['anim-jump', 'anim-spin', 'anim-pop']);
+    const avatar = $('#residentAvatar');
+    if (avatar && !prefersReduced) avatar.classList.add(anim);
+    if (anim === 'anim-pop' || anim === 'anim-spin') spawnCandies($('#fxLayer'), 8);
+    if ($('#speech')) $('#speech').textContent = pick(CONFIG.reactions.happy);
+    bumpStat('#statCandy');
+    resultHTML = `<div class="result-text ok">正中喜好！糖果 +${gain}</div>`;
+  } else {
+    /* 选错：扣糖 + 捣蛋值上升 */
+    state.candies = Math.max(0, state.candies - CONFIG.candyGain.interactWrong);
+    state.mischief = clamp(state.mischief + CONFIG.mischief.interactWrong, 0, CONFIG.mischief.max);
+    const avatar = $('#residentAvatar');
+    if (avatar && !prefersReduced) avatar.classList.add('anim-sad');
+    if ($('#speech')) $('#speech').textContent = pick(CONFIG.reactions.sad);
+    bumpStat('#statMischief');
+    resultHTML = `<div class="result-text bad">不合胃口……糖果 -${CONFIG.candyGain.interactWrong}，捣蛋值 +${CONFIG.mischief.interactWrong}</div>`;
+  }
+
+  /* 心情拉满 → 大把撒糖：额外得糖 + 大粒子动画 + 本门收工 */
+  let rushHTML = '';
+  if (dp.mood >= CONFIG.mood.max && !dp.satisfied) {
+    applySugarRush(dp);
+    spawnCandies($('#fxLayer'), 18);
+    rushHTML = `<div class="sugar-rush">心情值拉满！住户大把撒糖，糖果 +${CONFIG.candyGain.sugarRushBonus}！</div>`;
+    showToast('大把撒糖！额外糖果 +5', 'good');
+  }
+
+  /* 捣蛋值爆表 → 全屏搞怪事件（只触发一次） */
+  checkChaos();
+
+  renderHUD();
+  updateMoodUI();
+  const box = $('#visitActions');
+  if (box) box.innerHTML = `
+    <div class="visit-result">
+      ${resultHTML}
+      ${rushHTML}
+      <button class="btn" data-action="continueVisit">继续</button>
+    </div>`;
+}
+
+/* 捣蛋值满 → 触发全屏搞怪：红光 + 门抖动 + 住户戴墨镜变装 */
+function checkChaos() {
+  if (state.mischief >= CONFIG.mischief.max && !state.chaos) {
+    state.chaos = true;
+    state.mischief = CONFIG.mischief.max;
+    $('#chaosOverlay').classList.add('on');     // 全屏红光（opacity 过渡）
+    const grid = $('#doorsGrid');
+    if (grid) grid.classList.add('street-chaos'); // 门抖动（错峰）
+    /* 当前互动中的住户立即"变装"戴墨镜 */
+    const avatar = $('#residentAvatar');
+    if (avatar) {
+      const dp = state.doorProgress[state.currentDoor];
+      avatar.innerHTML = dragonSVG(dp.resident, { chaos: true });
+    }
+    showToast('捣蛋值爆表！整条街都乱套了！', 'bad');
+  }
+}
+
+/* 一次敲门流程结束：关门 → 回街区 or 结算 */
+function finishVisit() {
+  clearKnockTimers();
+  state.currentDoor = -1;
+  state.phase = 'street';
+  closeModal();
+  const allBlocked = state.doorProgress.every(doorBlocked);
+  if (state.knocksLeft <= 0 || allBlocked) settleRound();
+  else renderStreet();
+}
+
+/* ============================================================================
+ * 十、结算与图鉴
+ * ============================================================================ */
+
+/* 结算：评级 + 随机台词 + 本轮图鉴 + 更新存档 */
+function settleRound() {
+  state.phase = 'settle';
+  const c = state.candies, m = state.mischief;
+  const rating = CONFIG.ratings.find(r => r.check(c, m)) || CONFIG.ratings[CONFIG.ratings.length - 1];
+  const line = pick(CONFIG.settleLines);
+  state.roundResult = { rating: rating.name, line };
+
+  /* —— 更新持久化存档：图鉴累计 / 最佳纪录 / 轮次 —— */
+  state.doorProgress.forEach(dp => {
+    const col = save.collection[dp.resident];
+    col.candies += dp.candyGiven;
+    if (dp.satisfied) col.satisfied = true;
+    if (dp.jackpot) col.jackpot = true;
+    if (dp.kicked) col.kicked = true;
+  });
+  save.rounds += 1;
+  if (c > save.bestCandies) { save.bestCandies = c; save.bestRating = rating.name; }
+  persist();
+
+  /* 本轮图鉴四格 */
+  const cells = state.doorProgress.map(dp => {
+    const r = residentById(dp.resident);
+    return `<div class="codex-cell">
+      <div class="codex-avatar">${dragonSVG(r.id)}</div>
+      <div class="codex-name">${r.name}</div>
+      <div class="codex-candy">+${dp.candyGiven} 糖</div>
+      <div class="codex-tags">
+        <span class="tag ${dp.satisfied ? 'on' : ''}">撒糖</span>
+        <span class="tag ${dp.jackpot ? 'on' : ''}">大奖</span>
+        <span class="tag ${dp.kicked ? 'on' : ''}">被赶</span>
+      </div>
+    </div>`;
+  }).join('');
+
+  openModal(`
+    <div class="modal-sub">本轮结算</div>
+    <div class="settle-badge">${rating.name}</div>
+    <div class="settle-desc">${rating.desc}</div>
+    <div class="settle-quote">"${line}"</div>
+    <div class="settle-stats">
+      <div class="stat stat-candy">${iconSVG('candy')}<b>${c}</b></div>
+      <div class="stat stat-mischief">${iconSVG('devil')}<b>${m}</b></div>
+    </div>
+    <div class="section-label">本轮糖果图鉴</div>
+    <div class="codex-grid">${cells}</div>
+    <div class="codex-stats">最佳纪录：<b>${save.bestRating}</b>（${save.bestCandies} 颗糖）· 集齐所有徽章了吗？</div>
+    <div class="btn-row" style="margin-top:16px">
+      <button class="btn" data-action="nextRound">再来一轮</button>
+      <button class="btn btn-ghost" data-action="shareCard">生成分享卡片</button>
+    </div>
+    <button class="btn btn-ghost btn-block" style="margin-top:10px" data-action="goHome">回到首页</button>`);
+}
+
+/* 历史图鉴弹层（含重置记录按钮） */
+function openCodexModal() {
+  const cells = CONFIG.residents.map(r => {
+    const col = save.collection[r.id];
+    return `<div class="codex-cell">
+      <div class="codex-avatar">${dragonSVG(r.id)}</div>
+      <div class="codex-name">${r.name}</div>
+      <div class="codex-candy">累计 ${col.candies} 糖</div>
+      <div class="codex-tags">
+        <span class="tag ${col.satisfied ? 'on' : ''}">撒糖</span>
+        <span class="tag ${col.jackpot ? 'on' : ''}">大奖</span>
+        <span class="tag ${col.kicked ? 'on' : ''}">被赶</span>
+      </div>
+    </div>`;
+  }).join('');
+  openModal(`
+    <div class="modal-title">糖果图鉴</div>
+    <div class="modal-sub">多玩几轮，收集所有住户的撒糖 / 大奖 / 被赶瞬间！</div>
+    <div class="codex-grid">${cells}</div>
+    <div class="codex-stats">共玩 <b>${save.rounds}</b> 轮 · 最佳：<b>${save.bestRating || '无'}</b>（${save.bestCandies} 颗糖）</div>
+    <div class="btn-row" style="margin-top:16px">
+      <button class="btn btn-ghost" data-action="closeModalBtn">关闭</button>
+      <button class="btn btn-danger" data-action="resetSave" id="resetSaveBtn">重置记录</button>
+    </div>`, true);
+}
+
+/* 玩法说明弹层 */
+function openHelpModal() {
+  openModal(`
+    <div class="modal-title">玩法说明</div>
+    <ul class="help-list" style="margin-top:12px">
+      <li>一轮共有 <b>4 次敲门机会</b>，街上有 4 户住户：南瓜龙、幽灵龙、吸血鬼龙、木乃伊龙，<b>每户都有专属敲门暗号</b>。</li>
+      <li>点门后先<b>听住户示范暗号</b>，再由你复敲：<b>轻点</b>是短敲（点），<b>按住约三分之一秒</b>是长敲（条）。</li>
+      <li>暗号<b>全部敲对</b>效果最好；敲错 1 下还算过关；错 2 下以上（或没敲完）算敲错，闪红抖动、捣蛋值 +10。</li>
+      <li>每位住户每轮有<b>随机偏好</b>（有人吃"捣蛋"那套，有人爱看表演），选对心情上涨、糖果到手；<b>心情拉满</b>会大把撒糖！</li>
+      <li>选错扣糖、捣蛋值上升；捣蛋值<b>爆表</b>会全街大乱，之后敲门可能撞上<b>神秘大奖</b>，也可能<b>被赶走</b>。</li>
+      <li>同一扇门一轮最多敲 <b>2 次</b>，要不要回头再敲满心情，就看你的策略！</li>
+      <li>结算后可查看<b>糖果图鉴</b>（刷新也会保留），还能生成分享卡片。</li>
+    </ul>
+    <button class="btn btn-block" style="margin-top:16px" data-action="closeModalBtn">知道了</button>`, true);
+}
+
+/* ============================================================================
+ * 十一、动画工具：撒糖粒子（只用 transform + opacity）
+ * ============================================================================ */
+function spawnCandies(host, n) {
+  if (!host || prefersReduced) return; // 减少动态效果时不撒糖
+  const colors = ['#ff8c2f', '#ff6b9d', '#7ee081', '#ffd23f', '#8b5cf6'];
+  for (let i = 0; i < n; i++) {
+    const s = el(`<span class="candy-p">${iconSVG('candy')}</span>`);
+    s.style.setProperty('--dx', `${rand(-150, 150)}px`);
+    s.style.setProperty('--dy', `${rand(-170, -20)}px`);
+    s.style.setProperty('--rot', `${rand(-260, 260)}deg`);
+    s.style.animationDelay = `${rand(0, 0.18)}s`;
+    const svg = s.querySelector('svg');
+    if (svg) svg.style.color = pick(colors);
+    host.appendChild(s);
+    s.addEventListener('animationend', () => s.remove());
+  }
+}
+
+/* ============================================================================
+ * 十二、分享卡片（canvas 绘制，支持长按保存 / 下载）
+ * ============================================================================ */
+
+/* 圆角矩形路径（兼容不支持 roundRect 的浏览器） */
+function rr(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+/* canvas 版小黄龙（与 SVG 主角同款造型，手绘路径） */
+function drawDragon(ctx, cx, cy, s) {
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.scale(s, s);
+  /* 尾巴 */
+  ctx.fillStyle = '#f5b833';
+  ctx.beginPath();
+  ctx.moveTo(-56, 8);
+  ctx.quadraticCurveTo(-95, -4, -84, -36);
+  ctx.quadraticCurveTo(-68, -18, -48, -14);
+  ctx.closePath();
+  ctx.fill();
+  /* 背刺 */
+  ctx.fillStyle = '#ff9f1c';
+  const tri = (x1, y1, x2, y2, x3, y3) => {
+    ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.lineTo(x3, y3); ctx.closePath(); ctx.fill();
+  };
+  tri(-34, -52, -24, -76, -14, -54);
+  tri(-12, -58, 2, -84, 14, -56);
+  tri(12, -52, 24, -72, 34, -50);
+  /* 身体 */
+  ctx.fillStyle = '#ffd23f';
+  ctx.beginPath(); ctx.ellipse(0, 0, 62, 58, 0, 0, Math.PI * 2); ctx.fill();
+  /* 小手 */
+  ctx.beginPath(); ctx.arc(-58, 10, 10, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(58, 10, 10, 0, Math.PI * 2); ctx.fill();
+  /* 肚皮 */
+  ctx.fillStyle = '#ffefa8';
+  ctx.beginPath(); ctx.ellipse(0, 20, 36, 30, 0, 0, Math.PI * 2); ctx.fill();
+  /* 脚 */
+  ctx.fillStyle = '#f5c84c';
+  ctx.beginPath(); ctx.ellipse(-24, 58, 15, 9, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(24, 58, 15, 9, 0, 0, Math.PI * 2); ctx.fill();
+  /* 眼睛 */
+  ctx.fillStyle = '#fff';
+  ctx.beginPath(); ctx.arc(-22, -22, 11, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(22, -22, 11, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#241a33';
+  ctx.beginPath(); ctx.arc(-20, -20, 5, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(24, -20, 5, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#fff';
+  ctx.beginPath(); ctx.arc(-24, -25, 1.8, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(20, -25, 1.8, 0, Math.PI * 2); ctx.fill();
+  /* 腮红 */
+  ctx.fillStyle = 'rgba(255,120,140,.55)';
+  ctx.beginPath(); ctx.ellipse(-44, -2, 7, 4.5, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(44, -2, 7, 4.5, 0, 0, Math.PI * 2); ctx.fill();
+  /* 开心大笑的嘴 */
+  ctx.fillStyle = '#7a3720';
+  ctx.beginPath(); ctx.arc(2, 4, 14, 0.15 * Math.PI, 0.85 * Math.PI); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#ff8f8f';
+  ctx.beginPath(); ctx.ellipse(2, 11, 7, 4, 0, 0, Math.PI * 2); ctx.fill();
+  /* 南瓜糖果桶 */
+  ctx.save();
+  ctx.translate(58, 30);
+  ctx.strokeStyle = '#3d8b37'; ctx.lineWidth = 4; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(-4, -14); ctx.quadraticCurveTo(0, -22, 4, -14); ctx.stroke();
+  ctx.fillStyle = '#ff8c2f';
+  ctx.beginPath(); ctx.ellipse(0, 6, 17, 14, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = '#e06d1a'; ctx.lineWidth = 2.5;
+  ctx.beginPath(); ctx.moveTo(-8, -4); ctx.quadraticCurveTo(-10, 6, -8, 16); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(8, -4); ctx.quadraticCurveTo(10, 6, 8, 16); ctx.stroke();
+  ctx.fillStyle = '#5e2f10';
+  ctx.beginPath(); ctx.ellipse(0, -4, 15, 5, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#ff6b9d';
+  ctx.beginPath(); ctx.arc(-5, -5, 3.4, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#7ee081';
+  ctx.beginPath(); ctx.arc(4, -6, 3, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+  ctx.restore();
+}
+
+/* canvas 版装饰糖果 */
+function drawCandy(ctx, x, y, s, rot, color) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(rot);
+  ctx.scale(s, s);
+  ctx.fillStyle = '#ffb02e';
+  ctx.beginPath(); ctx.moveTo(-8, 0); ctx.lineTo(-17, -7); ctx.lineTo(-17, 7); ctx.closePath(); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(8, 0); ctx.lineTo(17, -7); ctx.lineTo(17, 7); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = color;
+  ctx.beginPath(); ctx.arc(0, 0, 8.5, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,.65)';
+  ctx.beginPath(); ctx.arc(-2.6, -2.6, 2.2, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+}
+
+/* 生成分享卡片 dataURL */
+function buildShareCard() {
+  const W = 640, H = 880;
+  const cv = document.createElement('canvas');
+  cv.width = W; cv.height = H;
+  const ctx = cv.getContext('2d');
+
+  /* 背景：暗紫渐变 */
+  const bg = ctx.createLinearGradient(0, 0, 0, H);
+  bg.addColorStop(0, '#2b1a4e');
+  bg.addColorStop(1, '#1d1035');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, W, H);
+
+  /* 星星 */
+  for (let i = 0; i < 30; i++) {
+    ctx.fillStyle = `rgba(255,255,255,${rand(0.25, 0.85)})`;
+    ctx.beginPath();
+    ctx.arc(rand(20, W - 20), rand(20, 380), rand(1, 2.6), 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  /* 月亮 */
+  ctx.fillStyle = 'rgba(255,233,163,.16)';
+  ctx.beginPath(); ctx.arc(520, 130, 88, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#ffe9a3';
+  ctx.beginPath(); ctx.arc(520, 130, 58, 0, Math.PI * 2); ctx.fill();
+
+  /* 地面 */
+  ctx.fillStyle = '#160c2b';
+  ctx.beginPath();
+  ctx.moveTo(0, H - 130);
+  ctx.quadraticCurveTo(W / 2, H - 175, W, H - 130);
+  ctx.lineTo(W, H); ctx.lineTo(0, H); ctx.closePath(); ctx.fill();
+
+  /* 标题 */
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#ffd76e';
+  ctx.font = "900 52px 'PingFang SC','Microsoft YaHei',sans-serif";
+  ctx.fillText('不给糖就捣蛋', W / 2, 104);
+  ctx.fillStyle = '#bca9e6';
+  ctx.font = "600 22px 'PingFang SC','Microsoft YaHei',sans-serif";
+  ctx.fillText('捣蛋小黄龙的万圣节战报', W / 2, 144);
+
+  /* 主角小黄龙 */
+  drawDragon(ctx, W / 2, 386, 1.55);
+
+  /* 战绩 */
+  ctx.fillStyle = '#bca9e6';
+  ctx.font = "700 24px 'PingFang SC','Microsoft YaHei',sans-serif";
+  ctx.fillText('本轮糖果收获', W / 2, 566);
+  drawCandy(ctx, W / 2 - 128, 618, 1.5, -0.4, '#ff8c2f');
+  drawCandy(ctx, W / 2 + 128, 618, 1.5, 0.5, '#ff6b9d');
+  ctx.fillStyle = '#ffd76e';
+  ctx.font = "900 76px 'PingFang SC','Microsoft YaHei',sans-serif";
+  ctx.fillText(`x ${state.candies}`, W / 2, 646);
+
+  /* 评级徽章 */
+  ctx.fillStyle = '#3a2765';
+  rr(ctx, W / 2 - 150, 692, 300, 58, 29);
+  ctx.fill();
+  ctx.strokeStyle = '#ffb02e';
+  ctx.lineWidth = 3;
+  rr(ctx, W / 2 - 150, 692, 300, 58, 29);
+  ctx.stroke();
+  ctx.fillStyle = '#ffb02e';
+  ctx.font = "900 30px 'PingFang SC','Microsoft YaHei',sans-serif";
+  ctx.fillText(`评级 · ${state.roundResult.rating}`, W / 2, 731);
+
+  /* 台词 */
+  ctx.fillStyle = '#e6dcff';
+  ctx.font = "600 22px 'PingFang SC','Microsoft YaHei',sans-serif";
+  ctx.fillText(`“${state.roundResult.line}”`, W / 2, 796);
+
+  /* 底部署名 */
+  ctx.fillStyle = '#8d7cc0';
+  ctx.font = "600 18px 'PingFang SC','Microsoft YaHei',sans-serif";
+  ctx.fillText('捣蛋小黄龙 · 万圣节特辑 · 长按图片保存', W / 2, 842);
+
+  return cv.toDataURL('image/png');
+}
+
+/* 分享卡片弹层 */
+function openShareModal() {
+  if (!state.roundResult) return;
+  const url = buildShareCard();
+  openModal(`
+    <div class="modal-title">分享卡片</div>
+    <div class="modal-sub">长按图片保存，或点击下方下载</div>
+    <img class="share-img" id="shareImg" src="${url}" alt="万圣节战报分享卡片">
+    <div class="share-tip">截图发给你朋友，比比谁的糖多！</div>
+    <div class="btn-row">
+      <button class="btn" data-action="downloadCard">下载图片</button>
+      <button class="btn btn-ghost" data-action="closeModalBtn">关闭</button>
+    </div>`, true);
+}
+
+/* 下载分享卡片 */
+function downloadCard() {
+  const img = $('#shareImg');
+  if (!img) return;
+  const a = document.createElement('a');
+  a.href = img.src;
+  a.download = '捣蛋小黄龙-万圣节战报.png';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  showToast('已开始下载分享卡片', 'good');
+}
+
+/* ============================================================================
+ * 十三、事件处理（统一委托）与初始化
+ * ============================================================================ */
+const actions = {
+  start() { startRound(); },
+  knockDoor(arg) { knockDoor(+arg); },
+  interact(arg) { chooseInteract(arg); },
+  continueVisit() { finishVisit(); },
+  nextRound() { closeModal(); startRound(); },
+  goHome() { closeModal(); renderStart(); },
+  openCodex() { openCodexModal(); },
+  openHelp() { openHelpModal(); },
+  shareCard() { openShareModal(); },
+  downloadCard() { downloadCard(); },
+  closeModalBtn() { closeModal(); },
+  /* 重看暗号示范（示范中 / 输入中都可以点） */
+  replayDemo() {
+    if (state.inputPhase !== 'demo' && state.inputPhase !== 'input') return;
+    clearTimeout(state.inputTimer);
+    playDemo();
+  },
+  /* 重新敲：清空已敲的序列（仅输入阶段可用） */
+  resetInput() {
+    if (state.inputPhase !== 'input') return;
+    startInput(currentPattern());
+  },
+  /* 音效开关（偏好持久化到存档） */
+  toggleSound() {
+    save.sound = !save.sound;
+    persist();
+    updateSoundBtn();
+    showToast(save.sound ? '音效已开启' : '音效已关闭', 'good');
+  },
+  /* 重置记录：第一次点变确认态，5 秒内再点才真正清空 */
+  resetSave(_, btn) {
+    if (btn.dataset.armed) {
+      save = defaultSave();
+      persist();
+      showToast('记录已清空，重新开始收集吧！', 'good');
+      openCodexModal();
+    } else {
+      btn.dataset.armed = '1';
+      btn.textContent = '再点一次确认清空！';
+      setTimeout(() => {
+        if (btn.isConnected) { delete btn.dataset.armed; btn.textContent = '重置记录'; }
+      }, 5000);
+    }
+  },
+};
+
+/* 全局点击委托 */
+document.addEventListener('click', (e) => {
+  const t = e.target.closest('[data-action]');
+  if (!t) return;
+  if (t.dataset.action === 'closeModal') {
+    /* 只有可关闭弹层允许点背景关闭；点卡片内部不关闭 */
+    if (!t.classList.contains('dismissible')) return;
+    if (e.target.closest('.modal-card')) return;
+    closeModal();
+    return;
+  }
+  const fn = actions[t.dataset.action];
+  if (fn) fn(t.dataset.arg, t);
+});
+
+/* 初始化：生成星星 */
+(function init() {
+  const box = $('#stars');
+  for (let i = 0; i < 42; i++) {
+    const s = document.createElement('i');
+    s.style.left = `${rand(0, 100)}%`;
+    s.style.top = `${rand(0, 70)}%`;
+    s.style.animationDelay = `${rand(0, 3)}s`;
+    box.appendChild(s);
+  }
+  renderStart();
+})();
+</script>
+</body>
+</html>
